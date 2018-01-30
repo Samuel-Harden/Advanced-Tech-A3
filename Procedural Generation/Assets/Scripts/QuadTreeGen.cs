@@ -26,18 +26,44 @@ public class QuadTreeGen : MonoBehaviour
     [SerializeField] bool show_nodes;
 
     [Space]
+    [Header("Use Perlin for Generation?")]
+    [SerializeField] bool use_perlin;
+
+    [Space]
+    [Header("Perlin Noise (Range 5-30)")]
+    [SerializeField] int perlin_noise;
+
+    [Space]
+    [Header("Density of area types")]
+    [SerializeField] float jumpable_density;
+    [SerializeField] float walkable_density;
+    [SerializeField] float impassable_density;
+
+    [Space]
     [Header("References")]
     [SerializeField] GameObject node;
-    [SerializeField] GameObject node_parent;
 
     private List<Vector3> positions;
 
     private List<Node> nodes;
 
+    private Perlin perlin;
+
     void Start()
     {
         positions = new List<Vector3>();
         nodes = new List<Node>();
+        perlin = gameObject.GetComponent<Perlin>();
+
+        //GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        //plane.transform.position = new Vector3(map_width / 2, 0.0f, map_height / 2);
+        //plane.transform.localScale = new Vector3(map_width / 10, 1.0f, map_height / 10);
+
+        if (perlin_noise < 5)
+            perlin_noise = 5;
+
+        if (perlin_noise > 30)
+            perlin_noise = 30;
 
         GeneratePositions();
 
@@ -47,11 +73,20 @@ public class QuadTreeGen : MonoBehaviour
 
     void GeneratePositions()
     {
-        for (int i = 0; i < no_positions; i++)
+        //Generate Random Set
+        if (!use_perlin)
         {
-            Vector3 pos = new Vector3(Random.Range(0, map_width), 0, Random.Range(0, map_height));
+            for (int i = 0; i < no_positions; i++)
+            {
+                Vector3 pos = new Vector3(Random.Range(0, map_width), 0, Random.Range(0, map_height));
 
-            positions.Add(pos);
+                positions.Add(pos);
+            }
+        }
+
+        else if(use_perlin)
+        {
+            perlin.GeneratePerlinData(map_width, map_height, perlin_noise, positions, jumpable_density, walkable_density, impassable_density);
         }
     }
 
@@ -68,8 +103,10 @@ public class QuadTreeGen : MonoBehaviour
 
         node_obj.GetComponent<Node>().SetDivideCount(divide_count);
 
+        node_obj.transform.parent = transform;
+
         node_obj.GetComponent<Node>().Initialise(Vector3.zero,
-            size_x, size_z, positions, show_nodes, max_depth, node, node_parent.transform, nodes, 0);
+            size_x, size_z, positions, show_nodes, max_depth, node, nodes, perlin, 0, 0);
     }
 
 

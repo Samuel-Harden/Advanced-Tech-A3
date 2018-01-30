@@ -78,7 +78,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\CameraMouseLook.cs" />
     <Compile Include="Assets\Scripts\Node.cs" />
+    <Compile Include="Assets\Scripts\Perlin.cs" />
+    <Compile Include="Assets\Scripts\PlayerMovement.cs" />
     <Compile Include="Assets\Scripts\QuadTreeGen.cs" />
     <Compile Include="Assets\Scripts\QuadTreeGenEditor.cs" />
   </ItemGroup>

@@ -20,14 +20,20 @@ public class Node : MonoBehaviour
     Vector3 top_left_pos;
     Vector3 top_right_pos;
 
+    private float average_density;
+
+    bool cheese = false;
+
 
     public void Initialise(Vector3 _position, float _size_x, float _size_z,
         List<Vector3> _positions, bool _show_nodes, int _depth, GameObject _node,
-        Transform _parent_node, List<Node> _nodes, int _division)
+        List<Node> _nodes, Perlin _perlin, int _division, float _avg_density)
     {
         child_nodes = new List<GameObject>();
 
         gizmos_enabled = _show_nodes;
+
+        average_density = 0;
 
         size_x = _size_x;
         size_z = _size_z;
@@ -40,22 +46,75 @@ public class Node : MonoBehaviour
         top_left_pos = new Vector3(_position.x, 0, _position.z + size_z);
         top_right_pos = new Vector3(_position.x + size_x, 0, _position.z + size_z);
 
-        transform.parent = _parent_node.transform;
+        //transform.parent = _parent_node.transform;
 
         if (_depth > 0)
         {
             // Check if this node needs spliting
-            if (DivideCheck(_positions))
+            if (DivideCheck(_positions, _perlin, _avg_density))
             {
                 divided = true;
                 _division++;
-                Divide(_positions, _depth, _node, _parent_node, _nodes, _division);
+                Divide(_positions, _depth, _node, _nodes, _perlin, _division);
             }
+
+            if (!divided)
+            {
+                GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+
+                plane.transform.position = new Vector3(transform.position.x + size_x / 2, 0.5f, transform.position.z + size_z / 2);
+
+                plane.transform.localScale = new Vector3(size_x / 10, 1.0f, size_z / 10);
+
+                plane.transform.parent = transform;
+
+                plane.GetComponent<Renderer>().material.color = Color.gray;
+            }
+        }
+
+        if (_depth == 0)
+        {
+            cheese = true;
+            if (average_density == 0)
+                average_density = _avg_density;
+
+            GenerateArea(_perlin);
         }
     }
 
 
-    private bool DivideCheck(List<Vector3> _positions)
+    private void GenerateArea(Perlin _perlin)
+    {
+        // 
+        if (average_density < _perlin.GetDensityPercentages()[1])
+        {
+            GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.transform.position = new Vector3(transform.position.x + size_x / 2, -0.5f, transform.position.z + size_z / 2);
+
+            cube.transform.localScale = new Vector3(size_x, 1.0f, size_z);
+
+            cube.GetComponent<Renderer>().material.color = Color.blue;
+
+            cube.transform.parent = transform;
+        }
+
+        // Anything in between is walkable
+
+        else if(average_density >= _perlin.GetDensityPercentages()[1])
+        {
+            GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.transform.position = new Vector3(transform.position.x + size_x / 2, 1.5f, transform.position.z + size_z / 2);
+
+            cube.transform.localScale = new Vector3(size_x, 3.0f, size_z);
+
+            cube.GetComponent<Renderer>().material.color = Color.black;
+
+            cube.transform.parent = transform;
+        }
+    }
+
+
+    private bool DivideCheck(List<Vector3> _positions, Perlin _perlin, float _avg_density)
     {
         int count = 0;
 
@@ -65,21 +124,25 @@ public class Node : MonoBehaviour
             if (pos.x >= transform.position.x && pos.x < (transform.position.x + size_x) &&
                 pos.z >= transform.position.z && pos.z < (transform.position.z + size_z))
             {
+                // What values are inthis area, so we can produce the correct density type
+                average_density += _perlin.GetDensityType((int)pos.x, (int)pos.z);
                 count++;
             }
-
-
-            if (count >= divide_count)
-            {
-                return true;
-            }
         }
+
+        average_density = average_density / count;
+
+        if (average_density == 0)
+            average_density = _avg_density;
+
+        if (count >= divide_count)
+            return true;
 
         return false;
     }
 
 
-    void Divide(List<Vector3> _positions, int _depth, GameObject _node, Transform _parent_node, List<Node> _nodes, int _division)
+    void Divide(List<Vector3> _positions, int _depth, GameObject _node, List<Node> _nodes, Perlin _perlin, int _division)
     {
         // Each recursion this should go down one
         _depth -= 1;
@@ -102,9 +165,11 @@ public class Node : MonoBehaviour
 
             node_obj.GetComponent<Node>().SetDivideCount(divide_count);
 
-            node_obj.GetComponent<Node>().Initialise(new_position, new_size_x, new_size_z, _positions, gizmos_enabled, _depth, _node, _parent_node, _nodes, _division);
+            node_obj.GetComponent<Node>().Initialise(new_position, new_size_x, new_size_z, _positions, gizmos_enabled, _depth, _node, _nodes, _perlin, _division, average_density);
 
             new_position.x += size_x / 2;
+
+            node_obj.transform.parent = transform;
 
             count++;
 
@@ -124,13 +189,19 @@ public class Node : MonoBehaviour
     }
 
 
+    public float GetAverageDensity()
+    {
+        return average_density;
+    }
+
+
     private void OnDrawGizmos()
     {
         if(gizmos_enabled)
         {
             if(!divided)
             {
-                Gizmos.color = Color.red;
+                Gizmos.color = Color.blue;
 
                 Gizmos.DrawLine(bottom_left_pos, bottom_right_pos);
                 Gizmos.DrawLine(bottom_right_pos, top_right_pos);
