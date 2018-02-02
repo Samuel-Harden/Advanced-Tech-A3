@@ -9,25 +9,13 @@ public class QuadTreeGen : MonoBehaviour
     [SerializeField] int map_height;
 
     [Space]
-    [Header("Number of Positions")]
-    [SerializeField] int no_positions;
-
-    [Space]
     [Header("Max no. of divisions")]
     [SerializeField] int max_depth;
-
-    [Space]
-    [Header("No of positions needed to divide")]
-    [SerializeField] int divide_count = 2;
 
     [Space]
     [Header("Show/Hide Gizmos")]
     [SerializeField] bool show_positions;
     [SerializeField] bool show_nodes;
-
-    [Space]
-    [Header("Use Perlin for Generation?")]
-    [SerializeField] bool use_perlin;
 
     [Space]
     [Header("Perlin Noise (Range 5-30)")]
@@ -42,12 +30,17 @@ public class QuadTreeGen : MonoBehaviour
     [Space]
     [Header("References")]
     [SerializeField] GameObject node;
+    [SerializeField] GameObject node_parent;
+
+    [SerializeField] bool show_pf;
 
     private List<Vector3> positions;
-
     private List<Node> nodes;
-
     private Perlin perlin;
+    private int divide_count = 1;
+
+    Pathfinding pathfinding;
+
 
     void Start()
     {
@@ -55,15 +48,9 @@ public class QuadTreeGen : MonoBehaviour
         nodes = new List<Node>();
         perlin = gameObject.GetComponent<Perlin>();
 
-        //GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        //plane.transform.position = new Vector3(map_width / 2, 0.0f, map_height / 2);
-        //plane.transform.localScale = new Vector3(map_width / 10, 1.0f, map_height / 10);
+        pathfinding = gameObject.GetComponent<Pathfinding>();
 
-        if (perlin_noise < 5)
-            perlin_noise = 5;
-
-        if (perlin_noise > 30)
-            perlin_noise = 30;
+        CheckBounds();
 
         GeneratePositions();
 
@@ -73,21 +60,8 @@ public class QuadTreeGen : MonoBehaviour
 
     void GeneratePositions()
     {
-        //Generate Random Set
-        if (!use_perlin)
-        {
-            for (int i = 0; i < no_positions; i++)
-            {
-                Vector3 pos = new Vector3(Random.Range(0, map_width), 0, Random.Range(0, map_height));
-
-                positions.Add(pos);
-            }
-        }
-
-        else if(use_perlin)
-        {
-            perlin.GeneratePerlinData(map_width, map_height, perlin_noise, positions, jumpable_density, walkable_density, impassable_density);
-        }
+        perlin.GeneratePerlinData(map_width, map_height, perlin_noise, positions,
+            jumpable_density, walkable_density, impassable_density);
     }
 
 
@@ -103,10 +77,28 @@ public class QuadTreeGen : MonoBehaviour
 
         node_obj.GetComponent<Node>().SetDivideCount(divide_count);
 
-        node_obj.transform.parent = transform;
+        node_obj.transform.parent = node_parent.transform;
 
         node_obj.GetComponent<Node>().Initialise(Vector3.zero,
-            size_x, size_z, positions, show_nodes, max_depth, node, nodes, perlin, 0, 0);
+            size_x, size_z, positions, show_nodes, max_depth, node, nodes, perlin, 0, 0,
+            node_parent.transform);
+
+        Debug.Log("No of Nodes PRE CleanUp: " + nodes.Count);
+
+        for (int i = (nodes.Count - 1); i >= 0; i--)
+        {
+            if (nodes[i].HasDivided())
+            {
+                Destroy(nodes[i].gameObject, 0.2f);
+                nodes.RemoveAt(i);
+                Debug.Log("Removed Node");
+            }
+        }
+
+        Debug.Log("No of Nodes CleanedUp: " + nodes.Count);
+
+        if(show_pf)
+        pathfinding.CreateGrid(map_width, map_height, GetSmallestNode());
     }
 
 
@@ -120,8 +112,35 @@ public class QuadTreeGen : MonoBehaviour
         positions.Clear();
         nodes.Clear();
 
+        CheckBounds();
         GeneratePositions();
         GenerateInitialNode();
+
+        //pathfinding.ResetGrid();
+        //pathfinding.CreateGrid();
+    }
+
+
+    private float GetSmallestNode()
+    {
+        float smallest_node = (map_width / 2);
+
+        for (int i = 0; i < max_depth - 1; i++)
+        {
+            smallest_node = smallest_node / 2;
+        }
+
+        return smallest_node;
+    }
+
+
+    private void CheckBounds()
+    {
+        if (perlin_noise < 5)
+            perlin_noise = 5;
+
+        if (perlin_noise > 30)
+            perlin_noise = 30;
     }
 
 

@@ -80,6 +80,8 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\CameraMouseLook.cs" />
     <Compile Include="Assets\Scripts\Node.cs" />
+    <Compile Include="Assets\Scripts\Pathfinding\Pathfinding.cs" />
+    <Compile Include="Assets\Scripts\Pathfinding\Tile.cs" />
     <Compile Include="Assets\Scripts\Perlin.cs" />
     <Compile Include="Assets\Scripts\PlayerMovement.cs" />
     <Compile Include="Assets\Scripts\QuadTreeGen.cs" />
